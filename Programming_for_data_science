@@ -1,0 +1,827 @@
+# Before you turn this problem in, make sure everything runs as expected. 
+# First, **restart the kernel** (in the menubar, select Kernel$\rightarrow$Restart) and then **run all cells** (in the menubar, select Cell$\rightarrow$Run All).
+
+# Make sure you fill in any place that says `YOUR CODE HERE` or "YOUR ANSWER HERE", as well as your name and collaborators below:
+
+# INSTRUCTIONS (QUESTION 1 and 2)
+
+# For Questions 1 and 2, you are asked to perform the following tasks based on the following target website, which contains artificial content designed for this assignment: https://sitescrape.awh.durham.ac.uk/comp42315_resit/ 
+
+# Please design and implement a solution to crawl the publication title, year and author list of every unique publication record on the target website. 
+# Then, using Pandas DataFrame, please create and display a table that contains these unique records. 
+# The table should consist of five columns: the row number in the table, publication title, author list, year, and the number of authors (hint: you will need to develop an algorithm to work this out). 
+# The records in the table should be sorted first according to the descending number of author values, then by the descending number of year values, and finally by the titles from A to Z. 
+# Include the full table in your Jupyter Notebook. 
+
+# [Explain your design and highlight any features in this question’s report part of your Jupyter Notebook in no more than 300 words. ] 
+
+
+
+
+
+
+
+
+##QUESTION 1
+
+
+# YOUR CODE HERE
+from itertools import takewhile
+import requests
+from bs4 import BeautifulSoup # BeautifulSoup is the package that Python uses to scrape a google link
+url = "https://sitescrape.awh.durham.ac.uk/comp42315_resit/publicationfull_year_characteranimation.htm" # the google link we are scraping
+
+page = requests.get(url)
+soup = BeautifulSoup(page.content, "html.parser") # the html content of the pages is retrieved and saved to 'soup'
+#print(soup.prettify()) #the function prettify allows us to see the layout and be able to read the html code
+
+divPerson = soup.find("div", id = "divBackground") # tells BeautifulSoup to isolate the body of the page for scraping
+
+aAuthors = divPerson.find_all("p") #tells BeautifulSoup to isolate the p tags within the isolated code
+aAuthors2 = aAuthors[0].find_all("a") # tells BeautifulSoup to isolate the a tags within the second p tag ([1] indicates second). the second p tag is the list of topics
+
+urlAuthors=[] # initialise list to store the relative links for the topics
+urlAuthors.append(url[52:]) # from the google link being scraped, the relative link for the first topic is the only one not included, so we append it to the empty list here before we begin
+for aAuthors1 in aAuthors2: # for each item in the list of a tags (in each a tag is located a relative link for a different topic)
+    urlAuthors.append(aAuthors1["href"]) # all relative links are added to the list just initialised.["href"] indicates just the link will be appended, not the whole a tag
+    
+googleLinks =[]   # initial a list to store all google links for topic
+for relativeLink in urlAuthors:    
+    googleLink = "https://sitescrape.awh.durham.ac.uk/comp42315_resit/" + relativeLink
+    googleLinks.append(googleLink)
+#using the list of relative links, these have been converted to google links. A for loop has been used to iterate through each relative link.
+    
+    
+bigList1=[] # initialising a list to store titles for all publications of all topics
+bigList2=[] # initialising a list to store years for all publications of all topics
+bigList3=[] # initialising a list to store authors for all publications of all topics
+bigAuthors=[] # initialising a list to store number of authors for all publications of all topics
+    
+    
+for topicLink in googleLinks: # for each google link, in the list of google links for each topic:
+    page2 = requests.get(topicLink)
+    soup2 = BeautifulSoup(page2.content, "html.parser")
+    divPerson2 = soup2.find("div", id = "divBackground") #this has isolated code, that contains sections for each type of publication
+    
+    DivBody = divPerson2.find_all("div", style = "margin-left: var(--size-marginleft)") #this has isolated separately, all sections as directly said above
+    
+    List1=[] # initialising a list to store title for all publications of the topic currently being iterated through by the for loop
+    List2=[] # initialising a list to store year for all publications of all topic currently being iterated through by the for loop
+    UrlList=[] # initialising a list to store author of authors for all publications of all topic currently being iterated through by the for loop
+    numAuthors=[] # initialising a list to store number of authors for all publications of all topic currently being iterated through by the for loop
+    
+    for X in DivBody: # this will iterate through the separate sections of code for each type of publication 
+
+        DivBody2 = X.find_all("div", class_ = "w3-cell-row") # within each section of code as stated above, this finds all separate sections of code for each publication within the type
+
+        for I in DivBody2: # for each publication within the the type:
+
+            DivBody3 = I.find("div", class_ = "w3-container w3-cell w3-mobile w3-cell-middle") # this isolates the code for the description of the publication
+            DivBody4 = DivBody3.find("span", class_ = "PublicationTitle") # within that description, this isolates the code for the title
+            DivBody6 = DivBody3.find_all("span", class_ = "TextSmall") #this finds all span tags of this class, the first one contains the year
+            
+            
+            h3s = DivBody3('a') # find all <h3> elements, this section of code extracts data for closing tags
+            Alltext=[]
+            for h3, h3next in zip(h3s, h3s[1:]):
+              # get elements in between
+              between_it = takewhile(lambda el: el is not h3next, h3.nextSiblingGenerator())
+              # extract text
+              Alltext.append(''.join(getattr(el, 'text', el) for el in between_it))
+                
+            #in Alltext, data such as publication year and some authors are stored.
+            
+            
+            
+            
+            titles = [] # titles will store author names
+            
+            for blur in Alltext: # this for loop retrieves authors from the closing tags
+                if blur.startswith(',') and blur.endswith(', ') and len(blur) > 2: # this retrieves the authors included in closing tags that are listed between commas
+                    titles.append(blur[2:-1])
+
+                if blur.endswith(' and ') and len(blur) > 5: # this retrieves authors included in the closing tags that are not the last one but are followed by and 
+                    titles.append(blur[2:-5])
+    
+                if blur.startswith(' and ') and len(blur) > 5: # thsi retrieves the last author if it is included in a closing tag, and so followed by a year within the closing tag
+                    titles.append(blur.split(' in ')[0][5:])
+            
+            
+           
+            brs = DivBody3('br') # find all <h3> elements, this section of code extracts data for closing tags
+            paper=[]
+            for h3, h3next in zip(brs, brs[1:]):
+                # get elements in between
+                between_it = takewhile(lambda el: el is not h3next, h3.nextSiblingGenerator())
+                # extract text
+                paper.append(''.join(getattr(el, 'text', el) for el in between_it))
+
+                
+                
+            sentence = DivBody3.text[5:] # this section of code is retrieving the title
+            words_in_a_list = sentence.split(" ")
+            if words_in_a_list.count("by") > 1:
+                sentence = "by".join(sentence.split("by", 2)[:2])
+            else:
+                sentence = DivBody3.text[5:].split(' by')[0]
+
+
+             
+            findTitle = I.find("div", class_ = "w3-container w3-cell w3-mobile w3-cell-middle", style="padding-bottom: 24px") 
+            
+             #the if loop below retieves authors that are written in the same tag as the title of the paper
+            beforeFirstTag = findTitle.find('a').previousSibling
+            if beforeFirstTag is None:
+                
+                
+                
+                
+                
+                beforeFirstTag = findTitle.find('br').previousSibling
+                #beforeFirstTag = findTitle.find('a').previousSibling
+                countBy = beforeFirstTag.split(" ")
+
+                if countBy.count("by") > 1:
+
+                    afterBy = "by".join(beforeFirstTag.split("by", 2)[-1])
+                    if len(afterBy) > 1:
+
+                        if afterBy.endswith('and '):
+                            titles.append(afterBy[1:-5])
+
+                        elif afterBy.endswith(', '):
+                            titles.append(afterBy[1:-2])
+
+                else:
+                    afterBy = beforeFirstTag.split(' by')[1]
+
+                    if len(afterBy) > 1:
+
+                        if afterBy.endswith('and '):
+                            titles.append(afterBy[1:-5])
+
+                        elif afterBy.endswith(', '):
+                            titles.append(afterBy[1:-2])    
+                
+                authorlist = ', '.join(titles[:-1]) # this retrieves authors listed in closing tags by themselves and concatenates them as one string, the last element isn't an author
+
+           
+
+                                     
+                            
+
+                if Alltext is None: # if there are no 'a' tags we have to retrieve the year a different way
+                    Year = beforeFirstTag[-4:]
+                
+
+
+                
+
+                List1.append(sentence) # this appends the title of the publication being iterated through to List1
+                #needs fixing
+                List2.append(Year) # this appends the year of the publication being iterated through to List2
+                #^this is perfect
+                UrlList.append(authorlist) #this append the text outputted from the seond span tag of said class, which is in fact the list of authors names for the publication
+                #misses authors that aren't hyperlinked but works
+
+
+                countLinks = 0 # this allows the coutn to begin from zero. the count is stored as an integer
+                #for link in DivBody6[1].find_all("a", href=True): # in the second span tag of said class, this finds all relative links, there is a relative link for each author  
+                    #countLinks = countLinks+1 # for each relatiev link iterated through, 1 is added to the count
+
+                for blur in titles[:-1]: # the last element in the list isn't an author
+                    countLinks = countLinks+1 # for each relatiev link iterated through, 1 is added to the count
+
+                numAuthors.append(countLinks) # when finished counting the authors, for the publication being iterated through, it appends them to the numAuthors list
+            
+            else: 
+                
+                beforeFirstTag = findTitle.find('a').previousSibling
+                countBy = beforeFirstTag.split(" ")
+
+                if countBy.count("by") > 1:
+
+                    afterBy = "by".join(beforeFirstTag.split("by", 2)[-1])
+                    if len(afterBy) > 1:
+
+                        if afterBy.endswith('and '):
+                            titles.append(afterBy[1:-5])
+
+                        elif afterBy.endswith(', '):
+                            titles.append(afterBy[1:-2])
+
+                else:
+                    afterBy = beforeFirstTag.split(' by')[1]
+
+                    if len(afterBy) > 1:
+
+                        if afterBy.endswith('and '):
+                            titles.append(afterBy[1:-5])
+
+                        elif afterBy.endswith(', '):
+                            titles.append(afterBy[1:-2])    
+
+
+                allhref = DivBody3.find_all("a") #this section of code adds to the list of authors, from the href tags
+                for blur in allhref: # the last element in allref isn't an author, so will have be removed further down
+                    titles.append(blur.text) 
+
+
+             
+                Year = Alltext[-1][-(len(paper[0])+14):-(len(paper[0])+10)]
+
+
+                authorlist = ', '.join(titles[:-1]) # this retrieves authors listed in closing tags by themselves and concatenates them as one string, the last element isn't an author
+
+         
+
+
+                List1.append(sentence) # this appends the title of the publication being iterated through to List1
+                #needs fixing
+                List2.append(Year) # this appends the year of the publication being iterated through to List2
+                #^this is perfect
+                UrlList.append(authorlist) #this append the text outputted from the seond span tag of said class, which is in fact the list of authors names for the publication
+                #misses authors that aren't hyperlinked but works
+
+
+                countLinks = 0 # this allows the coutn to begin from zero. the count is stored as an integer
+                #for link in DivBody6[1].find_all("a", href=True): # in the second span tag of said class, this finds all relative links, there is a relative link for each author  
+                    #countLinks = countLinks+1 # for each relatiev link iterated through, 1 is added to the count
+
+                for blur in titles[:-1]: # the last element in the list isn't an author
+                    countLinks = countLinks+1 # for each relatiev link iterated through, 1 is added to the count
+
+                numAuthors.append(countLinks) # when finished counting the authors, for the publication being iterated through, it appends them to the numAuthors list
+            
+            
+            
+            
+                        
+    for q in List1:
+        bigList1.append(q) # there is a list of titles for each google link, each google link beinga  different topic, this concatenates all these lists into one list in the order that it has iterated through
+        
+    for r in List2:
+        bigList2.append(r) # there is a list of years for each google link, each google link beinga  different topic, this concatenates all these lists into one list in the order that it has iterated through
+        
+    for t in UrlList:
+        bigList3.append(t) # there is a list of author names for each google link, each google link beinga  different topic, this concatenates all these lists into one list in the order that it has iterated through
+        
+    for v in numAuthors:
+        bigAuthors.append(v) # there is a list of number of authors for each google link, each google link beinga  different topic, this concatenates all these lists into one list in the order that it has iterated through
+
+bigList1
+bigList2
+bigList3
+bigAuthors # the last line will be printed, in this case it is list of number of authors for all publications in each topic. Printing this will enable you to see if it loks correct or not
+import pandas as pd # the pandas package within python
+
+df =  pd.DataFrame(zip(bigList1,bigList2,bigList3,bigAuthors),columns=['Title', 'Year','Authors','No. Authors']) # this means the lists can be used as collumns for a table. the data structure the lists have been zipped into is a dataframe using the pandas package
+df = df.sort_values(by=['No. Authors', 'Year', 'Title'], ascending=[False, False, True])
+df = df.drop_duplicates(subset=['Title', 'Year','Authors','No. Authors'])
+df.insert(0, 'Row number.', range(1, 1 + len(df)))
+from IPython.display import display, HTML
+display(HTML(df.to_html()))
+
+
+
+
+## Write your description in the following space for Question 1.
+
+
+
+
+# First of all, the list of url's has to be scraped, these are appended to a list. Next we initialise the lists that will store data for every publication: 4 lists. A for loop iterates through these topic url's, each time our for loop iterates through all publications for one topic, there are separate lists that all titles, publication years, authors (and number thereof) will be appended to.
+
+# The for loop iterating through publications is nested by a for loop iterating through section on the topic webpage separated by year, which is in turn nested by the for loop iterating through topic.
+
+# The publication title is stored within a 'div' tag, but before its first child tag, which is either an 'a' tag or a 'br' tag. If it is an 'a' tag, all authors are either stored outside the tag but before it, or within 'a' tags, and the year is stored within a closing tag. If it is a 'br' tag, all authors are stored outside the tag but before it, and the year is stored within a 'br' tag.
+
+# The 'split' function is used to separate the title from the author appending it, and also in cases where the last author is tored as a string, to separate it from 'and'.
+
+
+
+
+
+
+## Question 2 (30 marks)
+# You will use the scraping website to gather information related to research publications from Dr. Shum’s research group. You should avoid scraping the same url information repeatedly, by storing it in a dataframe for further processing.
+
+# a) Present Table 1 containing the headings: publication year, research publication title, impact factor (IF), citation count, and Similar Research items count (SRic) for the most highly-cited research publication in each year between and including 2006 and 2023. (5/30)
+
+# b) Determine the proportion of document types represented in Table 1, and legibly present this information in Table 2 with headings proportion and document type, taking care with the normalisation of proportion and including all document types. (5/30)
+
+# c) For each publication in Table 1, compute the impact factor mean and standard deviation of all publications with at least one shared topic with that publication, excluding the publication itself from the computation. Present the publication title, the mean impact factor of publications in shared topics, and the standard deviation in Table 3 with headings topic(s), research publication title, mean impact factor, and std. dev. impact factor. (10/30)
+
+# d) Finally, in Figure 1 plot the Similar Research items count (SRic) on the 𝑥-axis against the impact factor on the 𝑦-axis as a scatter plot including all research publications, coloring by document type, and using a different marker shape for those listed in Table 1. (10/30)
+
+# [Explain your design and highlight any features in this question’s report part of your Jupyter Notebook in no more than 300 words. ]
+
+
+
+
+
+## QUESTION 2 A) 
+
+# YOUR CODE HERE
+
+import numpy as np
+from itertools import takewhile
+import requests
+from bs4 import BeautifulSoup # BeautifulSoup is the package that Python uses to scrape a google link
+url = "https://sitescrape.awh.durham.ac.uk/comp42315_resit/publicationfull_type_characteranimation.htm" # the google link we are scraping
+
+page = requests.get(url)
+soup = BeautifulSoup(page.content, "html.parser") # the html content of the pages is retrieved and saved to 'soup'
+#print(soup.prettify()) #the function prettify allows us to see the layout and be able to read the html code
+
+divPerson = soup.find("div", id = "divBackground") # tells BeautifulSoup to isolate the body of the page for scraping
+
+aAuthors = divPerson.find_all("p") #tells BeautifulSoup to isolate the p tags within the isolated code
+aAuthors2 = aAuthors[0].find_all("a") # tells BeautifulSoup to isolate the a tags within the second p tag ([1] indicates second). the second p tag is the list of topics
+
+#the code below creates a list of topics to iterate through
+
+urlAuthors=[] # initialise list to store the relative links for the topics
+urlAuthors.append(url[52:]) # from the google link being scraped, the relative link for the first topic is the only one not included, so we append it to the empty list here before we begin
+for aAuthors1 in aAuthors2: # for each item in the list of a tags (in each a tag is located a relative link for a different topic)
+    urlAuthors.append(aAuthors1["href"]) # all relative links are added to the list just initialised.["href"] indicates just the link will be appended, not the whole a tag
+    linkText = aAuthors2[0].text
+    googleLinks =[]   # initial a list to store all google links for topic
+for relativeLink in urlAuthors:    
+    googleLink = "https://sitescrape.awh.durham.ac.uk/comp42315_resit/" + relativeLink
+    googleLinks.append(googleLink)
+#using the list of relative links, these have been converted to google links. A for loop has been used to iterate through each relative link.
+   
+    
+    
+
+    
+    
+    
+yearCol=[]  # initialising a list to store years for all publications of all topics
+noCitCol=[0] * 18  # initialising a list to store number of citations for all publications of all topics
+IFcol=[0] * 18  # initialising a list to store IMPACT FACTOR for all publications of all topics
+sricCol=[0] * 18 # initialising a list to store number of SRIC for all publications of all topics
+typeCol=[0] * 18 # 
+titleCol=[0] * 18
+
+yearCol = list(range(2006,2024))
+
+
+
+
+
+
+for topicLink in googleLinks:  # for each google link, in the list of google links for each topic:
+    
+    #the code below finds the topic 
+    
+    
+    page2 = requests.get(topicLink)
+    soup2 = BeautifulSoup(page2.content, "html.parser")
+    fetchTopic = soup2.find('title') # the title tag  contains text taht includes the topic currently being iterated through
+    topicText = fetchTopic.text  # the fetches the text outputed by the title tag
+    topicText = topicText[:-63]  # this removes the last 63 characters, which will be the same no matter which topic, leaving us with just the topic
+    
+    
+    divPerson2 = soup2.find("div", id = "divBackground")  #this has isolated code, that contains sections for each type of publication
+    DivBody = divPerson2.find_all("div", style = "margin-left: var(--size-marginleft)") # finds all div tags of this class
+    
+    
+    # below, need a for loop to go through all papers on page
+
+    for X in DivBody: # this will iterate through the separate sections of code for each type of publication 
+
+        DivBody2 = X.find_all("div", class_ = "w3-cell-row") # within each section of code as stated above, this finds all separate sections of code for each publication within the type
+
+        pubtype=X.find_previous_sibling('h2').text
+        for I in DivBody2: # for each publication within the the type: 
+            
+            
+            DivBody3 = I.find("div", class_ = "w3-container w3-cell w3-mobile w3-cell-middle") # this isolates the code for the description of the publication
+            DivBody4 = DivBody3.find("span", class_ = "PublicationTitle") # within that description, this isolates the code for the title
+            
+            DivBody6 = DivBody3.find_all("span", class_ = "TextSmall") #this finds all span tags of this class, the first one contains the year
+            
+            h3s = DivBody3('a') # find all <h3> elements, this section of code extracts data for closing tags
+            Alltext=[]
+            for h3, h3next in zip(h3s, h3s[1:]):
+              # get elements in between
+              between_it = takewhile(lambda el: el is not h3next, h3.nextSiblingGenerator())
+              # extract text
+              Alltext.append(''.join(getattr(el, 'text', el) for el in between_it))
+                
+            
+                  
+            #the if loop below retieves authors that are written in the same tag as the title of the paper
+            findTitle = I.find("div", class_ = "w3-container w3-cell w3-mobile w3-cell-middle", style="padding-bottom: 24px") 
+              #go into each paper, need to define href firts
+
+            brs = DivBody3('br') # find all <h3> elements, this section of code extracts data for closing tags
+            paper=[]
+            for h3, h3next in zip(brs, brs[1:]):
+              # get elements in between
+                between_it = takewhile(lambda el: el is not h3next, h3.nextSiblingGenerator())
+              # extract text
+                paper.append(''.join(getattr(el, 'text', el) for el in between_it))
+
+
+                
+            DivBody4 = DivBody3.find("span", class_ ="TextSmallDefault") # within that description, this isolates the code for the title
+            hrefPub = DivBody4.find('a')["href"]
+            pubLink = "https://sitescrape.awh.durham.ac.uk/comp42315_resit/" + hrefPub # as we iterate through publications, we crape the relative link ofr them, convert them to a google link, and go into that to scrape the number of citations and number of links
+            page3 = requests.get(pubLink)
+            soup3 = BeautifulSoup(page3.content, "html.parser")
+
+            #find the number of citations first, and convert to integer
+
+            divPersonPub = soup3.find("div", id = "divBackground")
+            divis = divPersonPub.find_all("div", style = "margin-left: var(--size-marginleft)")
+            h1style = divis[1].find_all("div")
+            test2 = h1style[2].text.split('\xa0')[0]
+            import re
+            test2 = [int(S) for S in re.findall(r'\d+', test2)] # this filters that etxt for only integer values, retrieving citation count
+
+
+                
+            beforeFirstTag = findTitle.find('a').previousSibling
+            if beforeFirstTag is None:
+                
+                beforeFirstTag = findTitle.find('br').previousSibling
+            
+                
+              
+                if Alltext is None: # if there are no 'a' tags the year is stored elsewhere
+                    Year = beforeFirstTag[-4:]
+                # we now have stored the year as year, but as  a string
+                Year = int(Year) 
+
+                position = yearCol.index(Year)
+
+               #go into each paper, need to define href firts
+
+           
+
+                if test2[0] > noCitCol[position] or noCitCol[position] is None:
+
+                    #here we can start storing values, for a start can add number of cit
+                    noCitCol[position] = test2[0] #have stored number of cit
+
+                    #next we can add title
+
+                    sentence = DivBody3.text[5:] # this section of code is retrieving the title
+                    words_in_a_list = sentence.split(" ")
+                    if words_in_a_list.count("by") > 1:
+                        sentence = "by".join(sentence.split("by", 2)[:2])
+                    else:
+                        sentence = DivBody3.text[5:].split(' by')[0]
+
+                    titleCol[position] = sentence
+
+                    #added title
+
+                    #next we can add impact factor
+
+                    test3 = h1style[2].text.split('\xa0')[1]
+                    test3 = re.findall(r"\d+\.\d+", test3) # this filters that etxt for only integer values, retrieving the 4 digit year
+
+                    IFcol[position] = float(test3[0]) # storing the IF factor
+
+                    #lastly count the SRIC 
+                    soup4 = soup3.find('body')
+                    sricCol[position] = len(soup4.find_all('div',{'class': 'ImgIconSimilarDiv'}))
+                    typeCol[position] = pubtype
+                
+
+
+            else:
+                beforeFirstTag = findTitle.find('a').previousSibling
+                
+                
+              
+                Year = Alltext[-1][-(len(paper[0])+14):-(len(paper[0])+10)]
+
+                  # we now have stored the year as year, but as  a string
+                Year = int(Year) 
+
+                #now need an if and (or) statement
+
+                position = yearCol.index(Year)
+
+             
+
+
+                if test2[0] > noCitCol[position] or noCitCol[position] is None:
+
+                    #here we can start storing values, for a start can add number of cit
+                    noCitCol[position] = test2[0] #have stored number of cit
+
+                    #next we can add title
+
+                    sentence = DivBody3.text[5:] # this section of code is retrieving the title
+                    words_in_a_list = sentence.split(" ")
+                    if words_in_a_list.count("by") > 1:
+                        sentence = "by".join(sentence.split("by", 2)[:2])
+                    else:
+                        sentence = DivBody3.text[5:].split(' by')[0]
+
+                    titleCol[position] = sentence
+
+                    #added title
+
+                    #next we can add impact factor
+                    
+                    newtest = h1style[2].text.split('\xa0')[1]
+                    newnew = re.findall(r"\d+\.\d+", newtest) # this filters that etxt for only integer values, retrieving the 4 digit year
+                    
+                    if len(newtest) == 0:
+                        IFcol[position] = None # storing the IF factor
+                    else:
+                        
+                        IFcol[position] = float(newnew[0]) # storing the IF factor
+
+                    #lastly count the SRIC 
+
+                    soup4 = soup3.find('body')
+                    sricCol[position] = len(soup4.find_all('div',{'class': 'ImgIconSimilarDiv'}))
+                    typeCol[position] = pubtype
+noCitCol             
+yearCol
+
+IFcol
+sricCol
+
+titleCol
+
+import pandas as pd # the pandas package within python
+
+df2 =  pd.DataFrame(zip(yearCol,titleCol,IFcol,noCitCol,sricCol,typeCol),columns=['Year', 'Title','IF','Cit','SRIC','type']) # this means the lists can be used as collumns for a table. the data structure the lists have been zipped into is a dataframe using the pandas package
+df4 =  pd.DataFrame(zip(yearCol,titleCol,IFcol,noCitCol,sricCol),columns=['Year', 'Title','IF','Cit','SRIC',])      
+        
+
+from IPython.display import display, HTML
+display(HTML(df4.to_html()))       
+
+
+
+## QUESTION 2 B) 
+
+
+
+
+from fractions import Fraction
+import math as m
+
+
+
+def to_freq_table(data):
+    freqtable = {}
+    for key in data:
+        if key in freqtable:
+            freqtable[key] += 1
+        else:
+            freqtable[key] = 1
+    return freqtable
+occurences = to_freq_table(typeCol)
+
+
+
+answer = {k: Fraction(v/len(typeCol)).limit_denominator(18) for k,v in occurences.items()}
+df3 = pd.DataFrame({'Type':answer.keys(), 'Proportion':answer.values()})
+from IPython.display import display, HTML
+display(HTML(df3.to_html()))       
+
+
+
+
+
+
+
+
+## QUESTION 2 C) 
+
+
+
+
+
+
+
+import requests
+from bs4 import BeautifulSoup # BeautifulSoup is the package that Python uses to scrape a google link
+url = "https://sitescrape.awh.durham.ac.uk/comp42315_resit/publicationfull_type_characteranimation.htm" # the google link we are scraping
+
+page = requests.get(url)
+soup = BeautifulSoup(page.content, "html.parser") # the html content of the pages is retrieved and saved to 'soup'
+#print(soup.prettify()) #the function prettify allows us to see the layout and be able to read the html code
+
+divPerson = soup.find("div", id = "divBackground") # tells BeautifulSoup to isolate the body of the page for scraping
+
+aAuthors = divPerson.find_all("p") #tells BeautifulSoup to isolate the p tags within the isolated code
+aAuthors2 = aAuthors[0].find_all("a") # tells BeautifulSoup to isolate the a tags within the second p tag ([1] indicates second). the second p tag is the list of topics
+
+#the code below creates a list of topics to iterate through
+
+urlAuthors=[] # initialise list to store the relative links for the topics
+urlAuthors.append(url[52:]) # from the google link being scraped, the relative link for the first topic is the only one not included, so we append it to the empty list here before we begin
+for aAuthors1 in aAuthors2: # for each item in the list of a tags (in each a tag is located a relative link for a different topic)
+    urlAuthors.append(aAuthors1["href"]) # all relative links are added to the list just initialised.["href"] indicates just the link will be appended, not the whole a tag
+    linkText = aAuthors2[0].text
+    googleLinks =[]   # initial a list to store all google links for topic
+for relativeLink in urlAuthors:    
+    googleLink = "https://sitescrape.awh.durham.ac.uk/comp42315_resit/" + relativeLink
+    googleLinks.append(googleLink)
+#using the list of relative links, these have been converted to google links. A for loop has been used to iterate through each relative link.
+   
+    
+    
+
+    
+    
+    
+listOfLists = []
+
+
+for blur in titleCol:
+
+    listRecordingPaperLinks = []
+    
+
+    for topicLink in googleLinks:  # for each google link, in the list of google links for each topic:
+
+        #the code below finds the topic 
+
+
+        page2 = requests.get(topicLink)
+        soup2 = BeautifulSoup(page2.content, "html.parser")
+        fetchTopic = soup2.find('title') # the title tag  contains text taht includes the topic currently being iterated through
+        topicText = fetchTopic.text  # the fetches the text outputed by the title tag
+        topicText = topicText[:-63]  # this removes the last 63 characters, which will be the same no matter which topic, leaving us with just the topic
+
+
+        divPerson2 = soup2.find("div", id = "divBackground")  #this has isolated code, that contains sections for each type of publication
+        DivBody = divPerson2.find_all("div", style = "margin-left: var(--size-marginleft)") # finds all div tags of this class
+
+
+        # below, need a for loop to go through all papers on page
+
+        for X in DivBody: # this will iterate through the separate sections of code for each type of publication 
+
+            DivBody2 = X.find_all("div", class_ = "w3-cell-row") # within each section of code as stated above, this finds all separate sections of code for each publication within the type
+
+
+            for I in DivBody2: # for each publication within the the type: 
+
+                DivBody3 = I.find("div", class_ = "w3-container w3-cell w3-mobile w3-cell-middle") # this isolates the code for the description of the publication
+
+                sentence = DivBody3.text[5:] # this section of code is retrieving the title
+                words_in_a_list = sentence.split(" ")
+
+                if words_in_a_list.count("by") > 1:
+                    sentence = "by".join(sentence.split("by", 2)[:2])
+                else:
+                    sentence = DivBody3.text[5:].split(' by')[0]   
+
+
+
+                if blur == sentence:
+                
+                
+                
+                
+                    listRecordingPaperLinks.append(topicLink)
+                    
+    smallList=[]            
+                
+    for blur in listRecordingPaperLinks: 
+        
+        
+        
+      
+
+        page2 = requests.get(blur)
+        soup2 = BeautifulSoup(page2.content, "html.parser")
+        fetchTopic = soup2.find('title') # the title tag  contains text taht includes the topic currently being iterated through
+        topicText = fetchTopic.text  # the fetches the text outputed by the title tag
+        topicText = topicText[:-63]  # this removes the last 63 characters, which will be the same no matter which topic, leaving us with just the topic
+
+
+        divPerson2 = soup2.find("div", id = "divBackground")  #this has isolated code, that contains sections for each type of publication
+        DivBody = divPerson2.find_all("div", style = "margin-left: var(--size-marginleft)") # finds all div tags of this class
+
+
+        # below, need a for loop to go through all papers on page
+
+        for X in DivBody: # this will iterate through the separate sections of code for each type of publication 
+
+            DivBody2 = X.find_all("div", class_ = "w3-cell-row") # within each section of code as stated above, this finds all separate sections of code for each publication within the type
+
+            pubtype=X.find_previous_sibling('h2').text
+            for I in DivBody2: # for each publication within the the type: 
+
+
+                DivBody3 = I.find("div", class_ = "w3-container w3-cell w3-mobile w3-cell-middle") # this isolates the code for the description of the publication
+                DivBody4 = DivBody3.find("span", class_ = "PublicationTitle") # within that description, this isolates the code for the title
+
+                DivBody6 = DivBody3.find_all("span", class_ = "TextSmall") #this finds all span tags of this class, the first one contains the year
+
+                h3s = DivBody3('a') # find all <h3> elements, this section of code extracts data for closing tags
+                Alltext=[]
+                for h3, h3next in zip(h3s, h3s[1:]):
+                  # get elements in between
+                  between_it = takewhile(lambda el: el is not h3next, h3.nextSiblingGenerator())
+                  # extract text
+                  Alltext.append(''.join(getattr(el, 'text', el) for el in between_it))
+
+
+
+                #the if loop below retieves authors that are written in the same tag as the title of the paper
+                findTitle = I.find("div", class_ = "w3-container w3-cell w3-mobile w3-cell-middle", style="padding-bottom: 24px") 
+
+
+
+
+
+
+
+               
+               #go into each paper, need to define href firts
+
+                DivBody4 = DivBody3.find("span", class_ ="TextSmallDefault") # within that description, this isolates the code for the title
+                hrefPub = DivBody4.find('a')["href"]
+                pubLink = "https://sitescrape.awh.durham.ac.uk/comp42315_resit/" + hrefPub # as we iterate through publications, we crape the relative link ofr them, convert them to a google link, and go into that to scrape the number of citations and number of links
+                page3 = requests.get(pubLink)
+                soup3 = BeautifulSoup(page3.content, "html.parser")
+
+                divPersonPub = soup3.find("div", id = "divBackground")
+                divis = divPersonPub.find_all("div", style = "margin-left: var(--size-marginleft)")
+                h1style = divis[1].find_all("div")
+
+                newtest = h1style[2].text.split('\xa0')[1]
+                newnew = re.findall(r"\d+\.\d+", newtest) # this filters that etxt for only integer values, retrieving the 4 digit year
+
+                if len(newtest) == 0:
+                        newnew = None # storing the IF factor
+                else:
+                        
+                        newnew = float(newnew[0]) # storing the IF factor
+                
+                smallList.append(newnew)
+    listOfLists.append(smallList)
+
+#the code below just ensures that there is reference size that ensures that the impact factor of the title from part A is only removed once    
+lengthOfFirstItemInListOfLists = len(listOfLists[0])
+lengthOfFirstItemInListOfLists    
+
+
+
+
+## QUESTION 2 C) CONTINUED
+
+
+
+
+
+
+listofMeans =[None] * 18
+listofVar =[None] * 18
+import statistics
+
+for i in listOfLists:
+    position = listOfLists.index(i) # need this for both calculating mean and variance, and also removing the effect on them from the publications listed in the title collumn
+    
+#I'm printing below to check that more than one IF factor value hasn't been removed, as requested for in the question    
+    
+    #print(len(i))
+    if IFcol[position] in i and len(listOfLists[0]) > lengthOfFirstItemInListOfLists-1:
+        i.remove(IFcol[position])
+    #print(len(i))
+    
+    listofMeans[position] = statistics.fmean(d for d in i if d is not None)
+    if i.count(None) < len(i)-1:    
+        listofVar[position] = statistics.variance(d for d in i if d is not None)
+#listofMeans
+#listofVar
+
+df5 =  pd.DataFrame(zip(titleCol,listofMeans,listofVar),columns=['Research Publication Title', 'Mean Impact Factor','Std. Dev. Impact Factor'])      
+
+from IPython.display import display, HTML
+display(HTML(df5.to_html()))        
+        
+
+
+
+
+
+
+
+## Write your description in the following space for Question 2.
+
+# For part A I had an 'if' statement requiring that for a publication to be stored, it must satisfy 2 conditions: for it's year to match the one being iterated through, and for the number of citations to be higher than that currently being stored for that year, unless indeed that being stored was 'None'. 
+# A for loop iterating topics encompassed this statement, wrapped in a a for loop iterating through the range of years required.
+
+# For part B i had a list of type as a result of part A, as when a paper was iterated through with a higher citation count than that currently stored, the type was also recorded in a list whereby it held the same index as that of the year within its respective list. 
+# From the table for part a, the frequencies for each type could then be calculated. I chose to display the proportions as fractions, as this ensured that the ratios were exact and so would not add up to more than 1. By using 'limit-denominator' the frcations were showed in their simplest form, allowing them to be interpretable.
+
+# For part C, I proceeded by initiating a list that would store a list of IF factor values for each title in partA. I had a for loop iterating through the list of titles, within this loop i intitated a list that would hold all topics for each paper. 
+# A for loop iterated through these, searching for the title in the publications on the page, if it was found the topic was appended to the list outside this loop. 
+# Outside this loop, but within the outer one for each publication, a for loop iterating through the list of topics holding one iterating through the publications on each topic page, would store a list of IF factors as items within the list outside all loops. Mean and variance could then be calculated.
